@@ -350,3 +350,5 @@ tr.group td { background: #f3f5f8; font-weight: 700; }
 @media (max-width: 600px), (max-height: 500px) and (max-width: 950px) {
   .top .badge { white-space: nowrap; font-size: .7rem; padding: .1rem .4rem; flex: none; }
 }
+
+.catcell select { margin-bottom: .3rem; }

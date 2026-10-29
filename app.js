@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.6';
+const VERSION = '1.1.8';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -24,7 +24,18 @@ const fmtDateTime = iso => new Date(iso).toLocaleString('fr-FR', { day: 'numeric
 const fmtTime = iso => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
 const sortProducts = (a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr') || (a.createdAt || 0) - (b.createdAt || 0);
-const catPicker = (cats, cur) => cats.length ? `<div class="catpick" style="grid-column:1/-1;flex-basis:100%"><span class="muted">Catégories existantes :</span> ${cats.map(c => `<button type="button" class="chip small ${c === cur ? 'on' : ''}" data-act="pick-cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+const allCategories = () => [...new Set(list('products').map(p => p.category))].sort((a, b) => a.localeCompare(b, 'fr'));
+/* Catégorie : liste déroulante des catégories existantes + champ pour en créer une à la volée (le champ prime s'il est rempli). */
+const catField = cur => {
+  const cats = allCategories(), sel = cats.includes(cur) ? cur : (cats[0] || '');
+  return `<label class="catcell">Catégorie${cats.length ? `<select name="catsel">${cats.map(c => `<option value="${esc(c)}" ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
+    <input name="newcat" placeholder="${cats.length ? 'ou nouvelle catégorie…' : 'Boissons'}" autocomplete="off" ${cats.length ? '' : 'required'}></label>`;
+};
+const readCategory = fd => {
+  const typed = (fd.get('newcat') || '').trim();
+  if (typed) { const ex = allCategories().find(c => c.toLowerCase() === typed.toLowerCase()); return ex || typed; }
+  return (fd.get('catsel') || '').trim() || 'Divers';
+};
 const list = store => Object.values(S[store]);
 const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
 const COLORS = { ambre: '#b45309', rouge: '#b91c1c', rose: '#be185d', violet: '#6d28d9', bleu: '#1d4ed8', cyan: '#0e7490', vert: '#15803d', olive: '#4d7c0f', gris: '#475569', brun: '#78350f' };
@@ -241,7 +252,7 @@ function recordSale(ev, cart, method, extra) {
     return { productId: p.id, name: p.name, ticketId: p.ticketId, ticketName: tk ? tk.name : p.name, qty: c.qty, price: ev.products[c.pid].price };
   });
   const total = sum(lines, l => l.qty * l.price);
-  return save('sales', Object.assign({ id: uid(), eventId: ev.id, at: new Date().toISOString(), lines, total, method }, Sync.tabletName() ? { tablet: Sync.tabletName() } : {}, extra));
+  return save('sales', Object.assign({ id: uid(), eventId: ev.id, at: new Date().toISOString(), lines, total, method }, Sync.tabletName() ? { tablet: Sync.tabletName(), by: Sync.account() } : {}, extra));
 }
 
 /* ========== état de l'interface ========== */
@@ -347,16 +358,13 @@ function viewCatalog() {
   const act = prods.filter(p => p.active), arch = prods.filter(p => !p.active);
   const shared = list('tickets').filter(t => t.shared).sort(byName);
   const cats = [...new Set(act.map(p => p.category))];
-  const allCats = [...new Set(['Boissons', 'Nourriture', 'Desserts', ...prods.map(p => p.category)])];
   let h = topbar(null) + `<main id="main" class="page" data-keep="main"><h1>Catalogue</h1>${storageBanner()}
     <form class="card quick-add" data-form="quickprod">
       <label>Nom<input name="name" required autocomplete="off" data-autofocus placeholder="Bière pression 25 cl"></label>
-      <label>Catégorie<input name="category" list="cats" value="${esc(ui.lastCategory || '')}" placeholder="Boissons" autocomplete="off"></label>
-      ${catPicker(allCats, ui.lastCategory)}
+      ${catField(ui.lastCategory)}
       <label>Prix (€)<input name="price" inputmode="decimal" required placeholder="2,50" autocomplete="off"></label>
       <label>Ticket<select name="ticket"><option value="own">Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${ui.lastTicket === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
-      <button class="btn primary">Ajouter</button></form>
-    <datalist id="cats">${allCats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>`;
+      <button class="btn primary">Ajouter</button></form>`;
   if (!act.length) h += emptyMsg('Aucun produit pour l’instant. Remplissez la ligne ci-dessus : après « Ajouter », vous pouvez enchaîner avec le produit suivant.');
   else {
     h += `<div class="card tablewrap"><table><thead><tr><th>Produit</th><th class="r">Prix</th><th>Ticket remis</th><th></th></tr></thead><tbody>`;
@@ -549,7 +557,7 @@ function viewMonitor(ev) {
     <div class="tile"><div class="k">Carte bancaire</div><div class="v">${fmt(t.cbTotal)}</div></div>
     <div class="tile"><div class="k">Espèces</div><div class="v">${fmt(t.cashTotal)}</div><div class="s">dont fond de caisse ${fmt(ev.floatCents)} : ${fmt(t.cashExpected)} en caisse</div></div>
     <div class="tile"><div class="k">Ardoises</div><div class="v">${fmt(t.tabConsumed)}</div><div class="s">dont crédit offert ${fmt(t.credit)}</div></div></div>
-    <div class="sec-title"><h2>Stocks</h2></div>
+    <div class="sec-title"><h2>Stocks</h2>${canEdit ? '<button class="btn small" data-act="prod-add">+ Produit</button>' : ''}</div>
     <div class="card tablewrap"><table><thead><tr><th>Produit</th><th class="r">Départ</th><th class="r">Réassort</th><th class="r">Vendu</th><th class="r">Reste</th><th></th></tr></thead><tbody>
     ${prods.map(p => {
       const s = stock[p.id];
@@ -563,7 +571,7 @@ function viewMonitor(ev) {
     h += `<div class="card tablewrap"><table><tbody>${sales.slice(0, 60).map(s => {
       const v = s.volunteerId ? S.volunteers[s.volunteerId] : null;
       const locked = s.method === 'tab' && ((ev.tabs || {})[s.volunteerId]);
-      return `<tr class="${s.voided ? 'voided' : ''}"><td class="tnum">${fmtTime(s.at)}</td><td>${METHOD_LABEL[s.method]}${v ? ' · ' + esc(v.name) : ''}${s.tablet ? ' <span class="muted">(' + esc(s.tablet) + ')</span>' : ''}</td><td>${saleSummary(s)}</td>
+      return `<tr class="${s.voided ? 'voided' : ''}"><td class="tnum">${fmtTime(s.at)}</td><td>${METHOD_LABEL[s.method]}${v ? ' · ' + esc(v.name) : ''}${s.tablet ? ' <span class="muted" title="' + esc(s.by || '') + '">(' + esc(s.tablet) + (s.by ? ' · ' + esc(s.by.split('@')[0]) : '') + ')</span>' : ''}</td><td>${saleSummary(s)}</td>
         <td class="r tnum"><b>${fmt(s.total)}</b></td><td class="r">${s.voided ? '<span class="badge">Annulée</span>' : (canEdit ? `<button class="btn small ghost" data-act="void" data-id="${s.id}" ${locked ? 'disabled title="Rouvrez d’abord l’ardoise"' : ''}>Annuler</button>` : '')}</td></tr>`;
     }).join('')}</tbody></table></div>${sales.length > 60 ? `<p class="muted">Les 60 dernières ventes sont affichées sur ${sales.length}. Le détail complet est dans l’export CSV du bilan.</p>` : ''}`;
   }
@@ -793,10 +801,9 @@ function modalHTML(ev) {
     const p = S.products[M.id];
     const shared = list('tickets').filter(t => t.shared).sort(byName);
     const cur = S.tickets[p.ticketId] && S.tickets[p.ticketId].shared ? p.ticketId : 'own';
-    const cats = [...new Set(list('products').map(x => x.category))];
     inner = `<form data-form="product" data-id="${p.id}"><h2>Modifier le produit</h2><div class="formgrid">
       <label>Nom<input name="name" required value="${esc(p.name)}" data-autofocus></label>
-      <label>Catégorie<input name="category" list="cats2" value="${esc(p.category)}"></label><datalist id="cats2">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>${catPicker(cats.sort((a, b) => a.localeCompare(b, 'fr')), p.category)}
+      ${catField(p.category)}
       <label>Prix (€)<input name="price" inputmode="decimal" required value="${toInput(p.price)}"></label>
       <label>Ticket remis<select name="ticket"><option value="own" ${cur === 'own' ? 'selected' : ''}>Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${cur === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div>
       <fieldset class="swatches"><legend>Couleur du bouton</legend>${COLOR_KEYS.map(k => `<label><input type="radio" name="color" value="${k}" ${p.color === k ? 'checked' : ''}><span style="--c:${COLORS[k]}" title="${k}"></span></label>`).join('')}</fieldset>
@@ -809,6 +816,21 @@ function modalHTML(ev) {
       <label>Partir d’une manifestation existante<select name="from"><option value="">Non, partir de zéro</option>${evs.map(e => `<option value="${e.id}" ${e.id === M.from ? 'selected' : ''}>${esc(e.name)} (${esc(fmtDate(e.date))})</option>`).join('')}</select></label>
       <p class="muted">En partant d’une édition passée, on reprend ses produits, prix, stocks, bénévoles et crédits. Les ventes ne sont pas copiées.</p>
       <div class="modal-actions"><button type="button" class="btn" data-act="modal-close">Annuler</button><button class="btn primary">Créer</button></div></form>`;
+  } else if (M.type === 'addprod') {
+    const cand = list('products').filter(p => p.active && !ev.products[p.id]).sort(sortProducts);
+    const mode = M.mode === 'catalog' && cand.length ? 'catalog' : 'new';
+    const shared = list('tickets').filter(t => t.shared).sort(byName);
+    const tabs = `<div class="row" style="gap:.4rem">${cand.length ? `<button type="button" class="chip ${mode === 'catalog' ? 'on' : ''}" data-act="prod-add-mode" data-v="catalog">Du catalogue</button>` : ''}<button type="button" class="chip ${mode === 'new' ? 'on' : ''}" data-act="prod-add-mode" data-v="new">Nouveau produit</button></div>`;
+    const fields = mode === 'catalog'
+      ? `<label>Produit<select name="pid" data-autofocus>${cand.map(p => `<option value="${p.id}">${esc(p.category)} · ${esc(p.name)} (${fmt(p.price)})</option>`).join('')}</select></label>
+         <label>Prix pour cette manifestation (€) <span class="muted">— vide : prix habituel</span><input name="price" inputmode="decimal" autocomplete="off"></label>`
+      : `<label>Nom<input name="name" required autocomplete="off" data-autofocus placeholder="Bière pression 25 cl"></label>
+         ${catField(ui.lastCategory)}
+         <label>Prix (€)<input name="price" inputmode="decimal" required autocomplete="off" placeholder="2,50"></label>
+         <label>Ticket remis<select name="ticket"><option value="own">Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${ui.lastTicket === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>`;
+    inner = `<form data-form="addprod"><h2>Ajouter un produit à la manifestation</h2>${tabs}<div class="formgrid">${fields}
+      <label>Quantité en stock maintenant <span class="muted">— vide : stock non suivi</span><input name="stock" inputmode="numeric" autocomplete="off" placeholder="12"></label></div>
+      <div class="modal-actions"><button type="button" class="btn" data-act="modal-close">Annuler</button><button class="btn primary">Ajouter</button></div></form>`;
   } else if (M.type === 'restock') {
     const p = S.products[M.id];
     inner = `<form data-form="restock" data-id="${p.id}"><h2>Réassort : ${esc(p.name)}</h2>
@@ -1016,6 +1038,8 @@ ACT['v-archive'] = el => { const v = S.volunteers[el.dataset.id]; v.active = fal
 ACT['v-restore'] = el => { const v = S.volunteers[el.dataset.id]; v.active = true; save('volunteers', v); render(); };
 
 /* suivi */
+ACT['prod-add'] = () => { ui.modal = { type: 'addprod', mode: 'catalog' }; render(); };
+ACT['prod-add-mode'] = el => { ui.modal.mode = el.dataset.v; render(); };
 ACT.restock = el => { ui.modal = { type: 'restock', id: el.dataset.id }; render(); };
 ACT.void = el => {
   const s = S.sales[el.dataset.id];
@@ -1032,7 +1056,7 @@ ACT['settle-step'] = el => { ui.settle.step = el.dataset.v; ui.settle.recv = '';
 function settleTab(rec) {
   const ev = curEvent(), tb = tabOf(ev, ui.settle.vid);
   if (ev.tabs[ui.settle.vid]) { toast('Cette ardoise vient d’être réglée sur une autre tablette.'); closeModal(); render(); return; }
-  ev.tabs[ui.settle.vid] = Object.assign({ at: new Date().toISOString(), amount: tb.due }, Sync.tabletName() ? { tablet: Sync.tabletName() } : {}, rec);
+  ev.tabs[ui.settle.vid] = Object.assign({ at: new Date().toISOString(), amount: tb.due }, Sync.tabletName() ? { tablet: Sync.tabletName(), by: Sync.account() } : {}, rec);
   save('events', ev); closeModal(); toast('Ardoise enregistrée'); render();
 }
 ACT['settle-cb'] = () => settleTab({ status: 'paid', method: 'cb' });
@@ -1054,7 +1078,7 @@ const FORM = {};
 FORM.quickprod = (f, fd) => {
   const price = parseEuro(fd.get('price')), name = fd.get('name').trim();
   if (!name || price == null || price < 0) { toast('Indiquez un nom et un prix.'); return; }
-  const category = (fd.get('category') || '').trim() || 'Divers';
+  const category = readCategory(fd);
   createProduct({ name, category, price, ticket: fd.get('ticket') });
   ui.lastCategory = category; ui.lastTicket = fd.get('ticket'); ui.focusPage = true;
   toast(`« ${name} » ajouté`); render();
@@ -1063,7 +1087,7 @@ FORM.product = (f, fd) => {
   const p = S.products[f.dataset.id], price = parseEuro(fd.get('price'));
   if (price == null || price < 0) { toast('Prix invalide.'); return; }
   p.name = fd.get('name').trim() || p.name;
-  p.category = (fd.get('category') || '').trim() || 'Divers';
+  p.category = readCategory(fd);
   p.price = price; p.color = fd.get('color') || p.color;
   applyTicket(p, fd.get('ticket'));
   save('products', p); ui.modal = null; render();
@@ -1088,8 +1112,30 @@ FORM.restock = (f, fd) => {
   const st0 = stockOf(ev)[f.dataset.id];
   if (st0 && !st0.tracked && qty < 0) { toast('Indiquez une quantité positive.'); return; }
   const rid = uid();
-  ev.restocks[rid] = { id: rid, productId: f.dataset.id, qty, at: new Date().toISOString(), tablet: Sync.tabletName() };
+  ev.restocks[rid] = { id: rid, productId: f.dataset.id, qty, at: new Date().toISOString(), tablet: Sync.tabletName(), by: Sync.account() };
   save('events', ev); ui.modal = null; toast('Stock mis à jour'); render();
+};
+FORM.addprod = (f, fd) => {
+  const ev = curEvent(), mode = ui.modal.mode;
+  const stockTxt = (fd.get('stock') || '').trim(), qty = stockTxt === '' ? null : parseInt(stockTxt, 10);
+  if (qty !== null && (isNaN(qty) || qty < 0)) { toast('Quantité invalide.'); return; }
+  let p, price;
+  if (mode === 'catalog') {
+    p = S.products[fd.get('pid')];
+    if (!p) { toast('Choisissez un produit.'); return; }
+    const t = (fd.get('price') || '').trim();
+    price = t === '' ? p.price : parseEuro(t);
+  } else {
+    const name = (fd.get('name') || '').trim(); price = parseEuro(fd.get('price'));
+    if (!name || price == null) { toast('Indiquez un nom et un prix.'); return; }
+    const category = readCategory(fd);
+    p = createProduct({ name, category, price, ticket: fd.get('ticket') });
+    ui.lastCategory = category; ui.lastTicket = fd.get('ticket');
+  }
+  if (price == null || price < 0) { toast('Prix invalide.'); return; }
+  ev.products[p.id] = { price, stock: null };
+  if (qty !== null) { const rid = uid(); ev.restocks[rid] = { id: rid, productId: p.id, qty, at: new Date().toISOString(), tablet: Sync.tabletName(), by: Sync.account() }; }
+  save('events', ev); ui.modal = null; toast('« ' + p.name + ' » ajouté'); render();
 };
 FORM.text = (f, fd) => { const v = fd.get('v').trim(); if (v) ui.modal.fn(v); };
 
@@ -1178,10 +1224,10 @@ ACT['export-bilan'] = () => {
 };
 ACT['export-sales'] = () => {
   const ev = curEvent();
-  const rows = [['Date', 'Heure', 'Mode de paiement', 'Bénévole', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Total vente', 'Annulée', 'Tablette']];
+  const rows = [['Date', 'Heure', 'Mode de paiement', 'Bénévole', 'Produit', 'Quantité', 'Prix unitaire', 'Total ligne', 'Total vente', 'Annulée', 'Tablette', 'Compte']];
   salesOf(ev, true).forEach(s => {
     const d = new Date(s.at), v = s.volunteerId && S.volunteers[s.volunteerId];
-    s.lines.forEach(l => rows.push([localDate(d), fmtTime(s.at), METHOD_LABEL[s.method], v ? v.name : '', l.name, l.qty, money(l.price), money(l.qty * l.price), money(s.total), s.voided ? 'oui' : '', s.tablet || '']));
+    s.lines.forEach(l => rows.push([localDate(d), fmtTime(s.at), METHOD_LABEL[s.method], v ? v.name : '', l.name, l.qty, money(l.price), money(l.qty * l.price), money(s.total), s.voided ? 'oui' : '', s.tablet || '', s.by || '']));
   });
   download(`ventes-${slug(ev.name)}-${ev.date}.csv`, csv(rows), 'text/csv;charset=utf-8');
 };
@@ -1258,7 +1304,7 @@ ACT.sample = loadSample;
 const AUTH_ERR = {
   'auth/invalid-credential': 'Adresse ou mot de passe incorrect.', 'auth/wrong-password': 'Adresse ou mot de passe incorrect.',
   'auth/user-not-found': 'Adresse ou mot de passe incorrect.', 'auth/invalid-email': 'Adresse e-mail invalide.',
-  'auth/network-request-failed': 'Pas de connexion Internet.', 'auth/too-many-requests': 'Trop d’essais. Patientez quelques minutes.',
+  'auth/network-request-failed': 'Pas de connexion Internet.', 'auth/popup-closed-by-user': 'Fenêtre fermée avant la fin de la connexion.', 'auth/cancelled-popup-request': 'Connexion annulée.', 'auth/popup-blocked': 'Le navigateur a bloqué la fenêtre Google : autorisez les fenêtres surgissantes pour ce site.', 'auth/unauthorized-domain': 'L’adresse de ce site n’est pas dans les domaines autorisés de Firebase (voir le guide).', 'auth/operation-not-allowed': 'La connexion Google n’est pas activée dans Firebase (voir le guide).', 'auth/too-many-requests': 'Trop d’essais. Patientez quelques minutes.',
 };
 function viewSync() {
   const s = Sync.state(), inf = Sync.info();
@@ -1271,13 +1317,16 @@ function viewSync() {
   }
   if (!Sync.hasAdapter() || !s.authKnown) return head + '<div class="card"><p>Chargement…</p></div></main>';
   if (!s.user) {
-    return head + `<div class="card"><h2>Connexion au compte partagé</h2>${s.linked
+    return head + `<div class="card"><h2>Connexion</h2>
+      <div class="row"><button class="btn primary big" data-act="sync-google">Se connecter avec Google</button></div>
+      <p class="muted">Utilisez votre compte Google : votre adresse doit avoir été ajoutée à la liste des personnes autorisées. Votre adresse et le nom de la caisse sont enregistrés avec chaque vente.</p>
+      ${ui.syncError ? `<p class="neg" role="alert">${esc(ui.syncError)}</p>` : ''}
+      <h3>Ou avec le compte partagé</h3>${s.linked
       ? '<p>Cette tablette est liée mais n’est plus connectée. Les ventes continuent d’être enregistrées ici et partiront dès la reconnexion.</p>'
       : '<p>Utilisez l’adresse et le mot de passe du compte créé dans Firebase (voir le guide). Ils ne sont à saisir qu’une fois par tablette.</p>'}
       <form data-form="sync-signin"><div class="formgrid">
         <label>Adresse e-mail<input name="email" type="email" required autocomplete="username" value="${esc(ui.syncEmail || (window.SYNC_CONFIG && window.SYNC_CONFIG.email) || '')}"></label>
         <label>Mot de passe<input name="password" type="password" required autocomplete="current-password"></label></div>
-        ${ui.syncError ? `<p class="neg" role="alert">${esc(ui.syncError)}</p>` : ''}
         <div class="modal-actions"><button class="btn primary">Se connecter</button></div></form>
       ${s.linked ? '<div class="row"><button class="btn ghost" data-act="sync-out">Quitter la synchronisation</button></div>' : ''}</div></main>`;
   }
@@ -1311,6 +1360,13 @@ function viewSync() {
 FORM['sync-signin'] = async (f, fd) => {
   ui.syncEmail = (fd.get('email') || '').trim(); ui.syncError = '';
   try { await Sync.signIn(ui.syncEmail, fd.get('password')); } catch (e) {
+    ui.syncError = AUTH_ERR[e && e.code] || 'Connexion impossible (' + ((e && (e.code || e.message)) || 'erreur') + ').';
+  }
+  render();
+};
+ACT['sync-google'] = async () => {
+  ui.syncError = '';
+  try { await Sync.signInGoogle(); } catch (e) {
     ui.syncError = AUTH_ERR[e && e.code] || 'Connexion impossible (' + ((e && (e.code || e.message)) || 'erreur') + ').';
   }
   render();
@@ -1349,12 +1405,6 @@ ACT['cat-rename'] = el => {
     ui.lastCategory = ui.lastCategory === old ? name : ui.lastCategory;
     closeModal(); toast(target ? 'Catégories fusionnées' : 'Catégorie renommée'); render();
   } });
-};
-ACT['pick-cat'] = el => {
-  const f = el.closest('form'), inp = f && f.querySelector('input[name=category]');
-  if (!inp) return;
-  inp.value = el.dataset.v;
-  f.querySelectorAll('.catpick .chip').forEach(c => c.classList.toggle('on', c === el));
 };
 ACT['vol-all'] = () => {
   const ev = curEvent();

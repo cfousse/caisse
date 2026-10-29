@@ -4,7 +4,7 @@
    Contrat attendu par sync.js : onAuth, signIn, signOut, watch, watchSales, pullSales, push, remove,
    isRemoteEmpty, uploadAll. */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where, limit,
   onSnapshot, setDoc, deleteDoc, deleteField, getDocsFromServer, writeBatch, enableNetwork, disableNetwork,
@@ -52,6 +52,8 @@ export function create(cfg) {
   instance = {
     onAuth(cb) { return onAuthStateChanged(auth, u => cb(u ? { email: u.email, uid: u.uid } : null)); },
     async signIn(email, password) { await signInWithEmailAndPassword(auth, email, password); },
+    /* Connexion avec un compte Google (fenêtre surgissante). L'adresse doit figurer dans la liste « allowed » de Firestore. */
+    async signInGoogle() { const prov = new GoogleAuthProvider(); prov.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, prov); },
     async signOut() { await signOut(auth); },
 
     watch(col, onSnap, onErr) { return watchQuery(collection(db, col), onSnap, onErr); },

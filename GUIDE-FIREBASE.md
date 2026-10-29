@@ -18,21 +18,40 @@ Il vous faut un compte Google et l'appli déjà en ligne sur GitHub Pages (voir 
 
 ## 3. Règles de sécurité (important)
 
-N'importe qui connaissant la configuration publique du projet pourrait créer un compte. Les règles ci-dessous réservent donc les données à **votre** compte partagé.
+N'importe qui connaissant la configuration publique du projet pourrait créer un compte. Les règles ci-dessous réservent donc les données à **votre** compte partagé et aux **adresses Google que vous autorisez** (partie 3 bis).
 
-**Firestore Database → Règles**, remplacez tout par (en mettant votre adresse) puis **Publier** :
+**Firestore Database → Règles**, remplacez tout par (en mettant l'adresse de votre compte partagé) puis **Publier** :
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email == 'caisse@votre-asso.fr';
+    function shared() {
+      return request.auth != null && request.auth.token.email == 'caisse@votre-asso.fr';
+    }
+    function allowed() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/allowed/$(request.auth.token.email));
+    }
+    // Les données de la caisse. La collection « allowed » n'est pas listée : l'appli ne peut ni la lire ni la modifier.
+    match /{col}/{id} {
+      allow read, write: if (shared() || allowed())
+        && col in ['events', 'products', 'volunteers', 'tickets', 'sales', '_diag'];
     }
   }
 }
 ```
+
+## 3 bis. Connexion avec un compte Google (facultatif)
+
+Permet à chaque membre de se connecter avec son propre compte Google. Son adresse et le nom de la caisse sont alors enregistrés avec chaque vente (colonne « Compte » de l'export CSV).
+
+1. **Authentication → Méthode de connexion → Ajouter un fournisseur → Google** : activer, choisir l'adresse d'assistance du projet, Enregistrer.
+2. **Authentication → Paramètres → Domaines autorisés** : ajouter votre site, par exemple `votre-compte.github.io` (sans `https://` ni chemin).
+3. **Autoriser une personne** : **Firestore Database → Données → Démarrer une collection** nommée `allowed`. Pour chaque personne, créez un document dont l'**ID est son adresse Gmail en minuscules** (ex. `marie@gmail.com`) avec un champ au choix (ex. `nom` = `Marie`). Pour retirer quelqu'un, supprimez son document.
+4. Sur la tablette : écran **Plusieurs tablettes** → **Se connecter avec Google**. Si la fenêtre ne s'ouvre pas, autorisez les fenêtres surgissantes pour le site.
+
+Un compte Google dont l'adresse n'est pas dans la liste peut se connecter, mais l'appli affiche « Ce compte n'est pas autorisé » et aucune donnée n'est lisible. Le compte partagé reste utilisable en secours.
 
 ## 4. Récupérer la configuration
 
@@ -53,7 +72,7 @@ Ces valeurs ne sont pas secrètes : c'est le mot de passe et les règles qui pro
 ## 5. Relier les tablettes
 
 1. Tablette 1 : ouvrez l'appli (avec réseau), rechargez deux fois pour récupérer la mise à jour. Accueil → **Plusieurs tablettes**.
-2. Connectez-vous avec le compte partagé, donnez un nom (« Caisse 1 »).
+2. Connectez-vous (avec Google ou avec le compte partagé), donnez un nom (« Caisse 1 »).
 3. Choisissez **Envoyer mes données vers le cloud** : le catalogue, les bénévoles et l'historique de cette tablette partent dans le cloud.
 4. Tablette 2 : même chose, nom « Caisse 2 », mais choisissez **Rejoindre la synchronisation** (récupère les données, n'envoie rien).
 5. Pastille en haut : verte = tout est envoyé, orange = envoi en attente (hors ligne), rouge = problème (voir l'écran Synchronisation).

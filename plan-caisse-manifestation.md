@@ -1,6 +1,6 @@
 # Caisse de manifestation — Plan du projet
 
-*Version 9 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
+*Version 12 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
 
 > **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; le passage à plusieurs tablettes (partie 7) est construit et testé sur une simulation de Firebase ; il reste à le valider sur votre vrai projet (voir 7.8 et 7.10).
 
@@ -107,7 +107,7 @@ Le **stock restant** est calculé : stock de départ + réassorts − quantités
 ### 4.2 Catalogue de produits
 - Renommer une catégorie : bouton « Renommer » sur la ligne de la catégorie ; tous ses produits (archivés compris) suivent. Renommer vers le nom d'une catégorie existante fusionne les deux.
 - Liste des produits par catégorie, triés par ordre alphabétique dans chaque catégorie (catalogue, préparation, caisse, exports)
-- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; les catégories déjà utilisées s'affichent en boutons à toucher (aussi à la modification d'un produit), il suffit d'en choisir une ou d'en taper une nouvelle ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
+- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; la catégorie se choisit dans une liste déroulante des catégories existantes (comme le ticket), et on en crée une à la volée en la tapant dans le champ « nouvelle catégorie » placé dessous (le champ prime s'il est rempli) ; même principe à la modification d'un produit et à l'ajout d'un produit en cours de manifestation ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
 - Gestion des tickets partagés (créer, renommer, voir quels produits les utilisent)
 - Modification et archivage d'un produit
 
@@ -125,7 +125,7 @@ Pensé pour être fait à l'avance, tranquillement, pour plusieurs manifestation
 - Ajuster un prix pour cette manifestation seulement
 - **Réassort d'un produit dont le stock n'était pas suivi** : la quantité saisie devient le stock « maintenant » et le suivi démarre à cet instant (les ventes déjà faites ne sont pas décomptées). Exemple : je saisis 12 bières, il en reste 12, puis 9 après une vente de 3. Les réassorts suivants s'ajoutent normalement.
 - Cocher les bénévoles présents et fixer leur crédit offert (montant par défaut pour tous, puis exceptions) ; boutons **Tout sélectionner** et **Tout retirer** (un bénévole qui a déjà consommé reste dans la manifestation)
-- Un bénévole imprévu peut aussi être ajouté le jour même, depuis la caisse
+- Un bénévole imprévu peut aussi être ajouté le jour même : bouton « Nouveau bénévole » au moment de payer sur ardoise, ou champ « Ajouter un bénévole » de l'écran Préparation (il reçoit le crédit par défaut)
 
 ### 4.5 Caisse (écran principal pendant la manifestation)
 - Grille de gros boutons colorés, regroupés par catégorie, adaptée au tactile. Sur téléphone (écran étroit), boutons, claviers et textes sont plus compacts (3 produits par ligne) ; la tablette garde les grandes tailles. Sur téléphone, la barre du haut est réduite : Caisse, Suivi, Ardoises, Bilan et Préparation passent dans un menu à trois traits, et l'état de la synchronisation devient un simple rond (vert : tout est envoyé, bleu : envoi en cours, orange : hors ligne, rouge : problème ; toucher le rond ouvre l'écran Synchronisation).
@@ -152,6 +152,12 @@ Juste après la validation du paiement, quel que soit le mode :
 ### 4.8 Suivi pendant la manifestation
 - Dernières ventes, avec possibilité d'en annuler une
 - Ajout d'un réassort
+- **Ajout d'un produit en cours de manifestation** : bouton « + Produit » à côté de « Réassort ». Une seule fenêtre :
+  - soit on choisit un produit du catalogue qui n'est pas encore dans la manifestation (son prix habituel est repris, modifiable) ;
+  - soit on en crée un nouveau (nom, catégorie, prix, ticket remis).
+  - Dans les deux cas on indique la quantité en stock **maintenant** (ou on la laisse vide pour ne pas suivre le stock) ; le suivi démarre à cet instant, comme pour le réassort d'un produit non suivi.
+  - Le produit apparaît aussitôt à la caisse, sur toutes les tablettes si la synchronisation est active, et reste dans le catalogue pour les prochaines manifestations.
+  - La grille de la caisse n'est pas modifiée : pas de bouton d'ajout au milieu de la file d'attente.
 - Totaux en cours (CB / espèces / ardoises)
 - Vue des ardoises : pour chaque bénévole, total consommé, crédit restant, montant dû à l'instant
 
@@ -280,6 +286,14 @@ Premier retour d'essai : une tablette repassait « hors ligne » et des données
 - Relance automatique de la liaison au retour du réseau et au retour de l'appli au premier plan.
 - Bloc **Diagnostic** sur l'écran Synchronisation : dernier échange avec le serveur, dernière erreur d'envoi, éléments en attente, bouton **Tester l'écriture** (distingue réseau bloqué et règles de sécurité qui refusent) et bouton **Relancer la liaison**.
 - La cause exacte du premier incident reste à confirmer avec le résultat du test sur la vraie tablette.
+
+### 7.11 Connexion avec un compte Google et traçabilité
+
+- Les membres de l'association peuvent se connecter avec leur compte Google (bouton **Se connecter avec Google** de l'écran Plusieurs tablettes). Le compte partagé reste disponible en secours.
+- Les personnes autorisées sont des documents de la collection `allowed` de Firestore (ID = adresse Gmail en minuscules), gérés dans la console Firebase : l'appli ne peut pas les modifier. Les règles de sécurité n'acceptent que le compte partagé et ces adresses.
+- Chaque vente, règlement d'ardoise et réassort enregistre **la caisse** (nom de la tablette) et **le compte** connecté. Le suivi affiche « (Caisse 1 · marie) », l'export CSV des ventes a une colonne « Compte ».
+- Un compte Google non autorisé voit le message « Ce compte n'est pas autorisé » et aucune donnée.
+- Étapes Firebase à faire : voir `GUIDE-FIREBASE.md`, partie 3 bis. À tester sur la tablette avant une manifestation (la fenêtre Google en mode application installée n'a pu être testée que sur simulation).
 
 ---
 

@@ -44,6 +44,8 @@ const Sync = (() => {
   const enabled = () => !!(window.__syncAdapter || (window.SYNC_CONFIG && window.SYNC_CONFIG.firebase && window.SYNC_CONFIG.firebase.apiKey));
   const linked = () => enabled() && !!meta().linked;
   const tabletName = () => (linked() ? meta().tabletName || '' : '');
+  /* Compte connecté (adresse e-mail) : inscrit avec chaque vente ; gardé en mémoire pour un redémarrage hors ligne. */
+  const account = () => (linked() ? (st.user && st.user.email) || meta().lastAccount || '' : '');
   const dirtyMap = () => meta().dirty || {};
   const isDirty = k => !!dirtyMap()[k];
   function markDirty(k) { if (!isDirty(k)) setSyncMeta({ dirty: Object.assign({}, dirtyMap(), { [k]: 1 }) }); }
@@ -145,6 +147,7 @@ const Sync = (() => {
   }
   function onAuth(user) {
     st.authKnown = true; st.user = user;
+    if (linked() && (meta().lastAccount || '') !== ((user && user.email) || '')) setSyncMeta({ lastAccount: (user && user.email) || '' });
     if (!user) stop(); else maybeStart();
     changed();
   }
@@ -174,7 +177,7 @@ const Sync = (() => {
   }
   function onWatchError(col, err) {
     console.warn('Synchronisation : erreur sur ' + col, err);
-    st.error = 'Erreur de synchronisation (' + (err && err.code ? err.code : 'inconnue') + ').';
+    st.error = err && err.code === 'permission-denied' ? 'Ce compte n’est pas autorisé à utiliser la caisse (permission-denied). Demandez à ce que son adresse soit ajoutée à la liste des personnes autorisées.' : 'Erreur de synchronisation (' + (err && err.code ? err.code : 'inconnue') + ').';
     changed();
   }
   function onSnap(store, label, snap) {
@@ -354,7 +357,7 @@ const Sync = (() => {
 
   return {
     init, enabled, linked, tabletName, state, pillInfo, updatePill, ensureAdapter, onSyncScreen,
-    signIn: (email, pw) => st.adapter.signIn(email, pw), signOut: () => st.adapter.signOut(),
+    signIn: (email, pw) => st.adapter.signIn(email, pw), signInGoogle: () => st.adapter.signInGoogle(), account, signOut: () => st.adapter.signOut(),
     probe, link, unlink, setTablet, retry, onSave, onDelete, reconnect, test, diag,
     hasAdapter: () => !!st.adapter, info: () => ({ situation: st.situation, probing: st.probing, probeError: st.probeError }),
     diff, // exposé pour les tests
