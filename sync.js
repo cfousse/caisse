@@ -7,7 +7,7 @@
    - Le connecteur Firebase (sync-firebase.js) est chargé à la demande ; sans configuration, rien ne change. */
 const Sync = (() => {
   const DELETE = '__DELETE__';
-  const COLS = ['products', 'tickets', 'volunteers', 'events'];
+  const COLS = ['products', 'tickets', 'categories', 'volunteers', 'events'];
   const ALL = COLS.concat('sales');
   const st = { adapter: null, loading: false, error: '', user: null, authKnown: false, started: false,
     fromCache: {}, firstSeen: {}, situation: null, probing: false, probeError: '' };

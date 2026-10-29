@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.8';
+const VERSION = '1.1.9';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -24,18 +24,13 @@ const fmtDateTime = iso => new Date(iso).toLocaleString('fr-FR', { day: 'numeric
 const fmtTime = iso => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
 const sortProducts = (a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr') || (a.createdAt || 0) - (b.createdAt || 0);
-const allCategories = () => [...new Set(list('products').map(p => p.category))].sort((a, b) => a.localeCompare(b, 'fr'));
-/* Catégorie : liste déroulante des catégories existantes + champ pour en créer une à la volée (le champ prime s'il est rempli). */
+/* Catégories : liste gérée dans le catalogue (comme les tickets partagés) ; les catégories déjà portées par des produits y figurent aussi. */
+const allCategories = () => [...new Set([...list('categories').map(c => c.name), ...list('products').map(p => p.category)])].sort((a, b) => a.localeCompare(b, 'fr'));
 const catField = cur => {
-  const cats = allCategories(), sel = cats.includes(cur) ? cur : (cats[0] || '');
-  return `<label class="catcell">Catégorie${cats.length ? `<select name="catsel">${cats.map(c => `<option value="${esc(c)}" ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : ''}
-    <input name="newcat" placeholder="${cats.length ? 'ou nouvelle catégorie…' : 'Boissons'}" autocomplete="off" ${cats.length ? '' : 'required'}></label>`;
+  const cats = allCategories(), sel = cats.includes(cur) ? cur : '';
+  return `<label>Catégorie<select name="catsel" required><option value="" ${sel ? '' : 'selected'} disabled>${cats.length ? 'Choisir…' : 'Créez d’abord une catégorie'}</option>${cats.map(c => `<option value="${esc(c)}" ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`;
 };
-const readCategory = fd => {
-  const typed = (fd.get('newcat') || '').trim();
-  if (typed) { const ex = allCategories().find(c => c.toLowerCase() === typed.toLowerCase()); return ex || typed; }
-  return (fd.get('catsel') || '').trim() || 'Divers';
-};
+const readCategory = fd => (fd.get('catsel') || '').trim();
 const list = store => Object.values(S[store]);
 const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
 const COLORS = { ambre: '#b45309', rouge: '#b91c1c', rose: '#be185d', violet: '#6d28d9', bleu: '#1d4ed8', cyan: '#0e7490', vert: '#15803d', olive: '#4d7c0f', gris: '#475569', brun: '#78350f' };
@@ -52,7 +47,7 @@ function toast(msg) {
 }
 
 /* ========== stockage (IndexedDB) ========== */
-const STORES = ['products', 'tickets', 'volunteers', 'events', 'sales', 'meta'];
+const STORES = ['products', 'tickets', 'categories', 'volunteers', 'events', 'sales', 'meta'];
 const S = {};
 STORES.forEach(s => (S[s] = {}));
 let db = null;
@@ -60,8 +55,8 @@ let dbOk = true;
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const r = indexedDB.open('caisse-manifestation', 1);
-    r.onupgradeneeded = () => STORES.forEach(s => r.result.createObjectStore(s, { keyPath: 'id' }));
+    const r = indexedDB.open('caisse-manifestation', 2);
+    r.onupgradeneeded = () => STORES.forEach(s => { if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, { keyPath: 'id' }); });
     r.onsuccess = () => resolve(r.result);
     r.onerror = () => reject(r.error);
   });
@@ -365,11 +360,17 @@ function viewCatalog() {
       <label>Prix (€)<input name="price" inputmode="decimal" required placeholder="2,50" autocomplete="off"></label>
       <label>Ticket<select name="ticket"><option value="own">Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${ui.lastTicket === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
       <button class="btn primary">Ajouter</button></form>`;
+  h += `<div class="sec-title"><h2>Catégories</h2><button class="btn" data-act="c-add">Nouvelle catégorie</button></div>
+    <div class="card">${allCategories().length ? allCategories().map(c => {
+      const used = list('products').filter(p => p.category === c);
+      return `<div class="row sb" style="padding:.3rem 0"><div><b>${esc(c)}</b> <span class="muted">· ${used.length ? used.length + ' produit' + (used.length > 1 ? 's' : '') : 'aucun produit'}</span></div>
+        <div class="row"><button class="btn small" data-act="cat-rename" data-v="${esc(c)}">Renommer</button>${used.length ? '' : `<button class="btn small ghost" data-act="c-del" data-v="${esc(c)}">Supprimer</button>`}</div></div>`;
+    }).join('') : emptyMsg('Créez d’abord vos catégories (par exemple « Boissons », « Restauration »), puis choisissez-en une dans la liste « Catégorie » de chaque produit.')}</div>`;
   if (!act.length) h += emptyMsg('Aucun produit pour l’instant. Remplissez la ligne ci-dessus : après « Ajouter », vous pouvez enchaîner avec le produit suivant.');
   else {
     h += `<div class="card tablewrap"><table><thead><tr><th>Produit</th><th class="r">Prix</th><th>Ticket remis</th><th></th></tr></thead><tbody>`;
     cats.forEach(c => {
-      h += `<tr class="group"><td colspan="4"><div class="row sb"><span>${esc(c)}</span><button class="btn small" data-act="cat-rename" data-v="${esc(c)}">Renommer</button></div></td></tr>` + act.filter(p => p.category === c).map(productRow).join('');
+      h += `<tr class="group"><td colspan="4">${esc(c)}</td></tr>` + act.filter(p => p.category === c).map(productRow).join('');
     });
     h += `</tbody></table></div>`;
   }
@@ -1079,6 +1080,7 @@ FORM.quickprod = (f, fd) => {
   const price = parseEuro(fd.get('price')), name = fd.get('name').trim();
   if (!name || price == null || price < 0) { toast('Indiquez un nom et un prix.'); return; }
   const category = readCategory(fd);
+  if (!category) { toast('Choisissez une catégorie (à créer dans la section Catégories).'); return; }
   createProduct({ name, category, price, ticket: fd.get('ticket') });
   ui.lastCategory = category; ui.lastTicket = fd.get('ticket'); ui.focusPage = true;
   toast(`« ${name} » ajouté`); render();
@@ -1087,7 +1089,7 @@ FORM.product = (f, fd) => {
   const p = S.products[f.dataset.id], price = parseEuro(fd.get('price'));
   if (price == null || price < 0) { toast('Prix invalide.'); return; }
   p.name = fd.get('name').trim() || p.name;
-  p.category = readCategory(fd);
+  p.category = readCategory(fd) || p.category;
   p.price = price; p.color = fd.get('color') || p.color;
   applyTicket(p, fd.get('ticket'));
   save('products', p); ui.modal = null; render();
@@ -1129,6 +1131,7 @@ FORM.addprod = (f, fd) => {
     const name = (fd.get('name') || '').trim(); price = parseEuro(fd.get('price'));
     if (!name || price == null) { toast('Indiquez un nom et un prix.'); return; }
     const category = readCategory(fd);
+    if (!category) { toast('Choisissez une catégorie.'); return; }
     p = createProduct({ name, category, price, ticket: fd.get('ticket') });
     ui.lastCategory = category; ui.lastTicket = fd.get('ticket');
   }
@@ -1394,15 +1397,30 @@ ACT['menu-toggle'] = el => {
   const top = el.closest('.top'), open = !top.classList.contains('menu-open');
   top.classList.toggle('menu-open', open); el.setAttribute('aria-expanded', open ? 'true' : 'false');
 };
+ACT['c-add'] = () => askText({ title: 'Nouvelle catégorie', label: 'Nom de la catégorie (ex. Boissons)', fn: v => {
+  const name = v.trim(); if (!name) return;
+  if (allCategories().some(c => c.toLowerCase() === name.toLowerCase())) { toast('Cette catégorie existe déjà.'); return; }
+  save('categories', { id: uid(), name }); ui.lastCategory = name; ui.modal = null; render();
+} });
+ACT['c-del'] = el => {
+  const name = el.dataset.v;
+  if (list('products').some(p => p.category === name)) { toast('Cette catégorie contient encore des produits.'); return; }
+  list('categories').filter(c => c.name === name).forEach(c => del('categories', c.id)); render();
+};
 ACT['cat-rename'] = el => {
   const old = el.dataset.v;
   askText({ title: 'Renommer la catégorie', label: 'Nouveau nom', value: old, fn: v => {
     const nv = v.trim();
     if (!nv || nv === old) { closeModal(); render(); return; }
-    const target = list('products').find(p => p.category.toLowerCase() === nv.toLowerCase() && p.category !== old);
-    const name = target ? target.category : nv;
-    list('products').filter(p => p.category === old).forEach(p => { p.category = name; if (target) p.color = target.color; save('products', p); });
-    ui.lastCategory = ui.lastCategory === old ? name : ui.lastCategory;
+    const target = allCategories().find(c => c.toLowerCase() === nv.toLowerCase() && c !== old);
+    const name = target || nv;
+    const tp = target && list('products').find(p => p.category === target);
+    list('products').filter(p => p.category === old).forEach(p => { p.category = name; if (tp) p.color = tp.color; save('products', p); });
+    const docs = list('categories').filter(c => c.name === old);
+    if (target) docs.forEach(c => del('categories', c.id));
+    else if (docs.length) docs.forEach(c => { c.name = name; save('categories', c); });
+    else save('categories', { id: uid(), name });
+    if (ui.lastCategory === old) ui.lastCategory = name;
     closeModal(); toast(target ? 'Catégories fusionnées' : 'Catégorie renommée'); render();
   } });
 };

@@ -18,7 +18,7 @@ Il vous faut un compte Google et l'appli déjà en ligne sur GitHub Pages (voir 
 
 ## 3. Règles de sécurité (important)
 
-N'importe qui connaissant la configuration publique du projet pourrait créer un compte. Les règles ci-dessous réservent donc les données à **votre** compte partagé et aux **adresses Google que vous autorisez** (partie 3 bis).
+N'importe qui connaissant la configuration publique du projet pourrait créer un compte. Les règles ci-dessous (mises à jour avec la collection `categories`, à republier si vous aviez déjà copié l'ancienne version) réservent donc les données à **votre** compte partagé et aux **adresses Google que vous autorisez** (partie 3 bis).
 
 **Firestore Database → Règles**, remplacez tout par (en mettant l'adresse de votre compte partagé) puis **Publier** :
 
@@ -36,7 +36,7 @@ service cloud.firestore {
     // Les données de la caisse. La collection « allowed » n'est pas listée : l'appli ne peut ni la lire ni la modifier.
     match /{col}/{id} {
       allow read, write: if (shared() || allowed())
-        && col in ['events', 'products', 'volunteers', 'tickets', 'sales', '_diag'];
+        && col in ['events', 'products', 'categories', 'volunteers', 'tickets', 'sales', '_diag'];
     }
   }
 }

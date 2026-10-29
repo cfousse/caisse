@@ -1,6 +1,6 @@
 # Caisse de manifestation — Plan du projet
 
-*Version 12 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
+*Version 13 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
 
 > **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; le passage à plusieurs tablettes (partie 7) est construit et testé sur une simulation de Firebase ; il reste à le valider sur votre vrai projet (voir 7.8 et 7.10).
 
@@ -105,9 +105,9 @@ Le **stock restant** est calculé : stock de départ + réassorts − quantités
 - Accès au catalogue, aux bénévoles, à l'historique et à la sauvegarde
 
 ### 4.2 Catalogue de produits
-- Renommer une catégorie : bouton « Renommer » sur la ligne de la catégorie ; tous ses produits (archivés compris) suivent. Renommer vers le nom d'une catégorie existante fusionne les deux.
+- **Catégories gérées comme les tickets partagés** : section « Catégories » du catalogue avec « Nouvelle catégorie », « Renommer » et « Supprimer » (seulement si aucun produit n'y est rattaché). Une catégorie peut être créée à l'avance, sans produit. Renommer met à jour tous les produits (archivés compris) ; renommer vers le nom d'une catégorie existante fusionne les deux. Les doublons (majuscules ignorées) sont refusés.
 - Liste des produits par catégorie, triés par ordre alphabétique dans chaque catégorie (catalogue, préparation, caisse, exports)
-- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; la catégorie se choisit dans une liste déroulante des catégories existantes (comme le ticket), et on en crée une à la volée en la tapant dans le champ « nouvelle catégorie » placé dessous (le champ prime s'il est rempli) ; même principe à la modification d'un produit et à l'ajout d'un produit en cours de manifestation ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
+- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; la catégorie se choisit dans une liste déroulante des catégories gérées (comme le ticket) ; il n'y a plus de création à la volée, on crée d'abord la catégorie dans la section « Catégories » ; même principe à la modification d'un produit et à l'ajout d'un produit en cours de manifestation ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
 - Gestion des tickets partagés (créer, renommer, voir quels produits les utilisent)
 - Modification et archivage d'un produit
 
