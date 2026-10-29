@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.0';
+const VERSION = '1.1.4';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -23,7 +23,8 @@ const fmtDate = d => (d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', 
 const fmtDateTime = iso => new Date(iso).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const fmtTime = iso => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const byName = (a, b) => a.name.localeCompare(b.name, 'fr');
-const sortProducts = (a, b) => a.category.localeCompare(b.category, 'fr') || (a.createdAt || 0) - (b.createdAt || 0);
+const sortProducts = (a, b) => a.category.localeCompare(b.category, 'fr') || a.name.localeCompare(b.name, 'fr') || (a.createdAt || 0) - (b.createdAt || 0);
+const catPicker = (cats, cur) => cats.length ? `<div class="catpick" style="grid-column:1/-1;flex-basis:100%"><span class="muted">Catégories existantes :</span> ${cats.map(c => `<button type="button" class="chip small ${c === cur ? 'on' : ''}" data-act="pick-cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
 const list = store => Object.values(S[store]);
 const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
 const COLORS = { ambre: '#b45309', rouge: '#b91c1c', rose: '#be185d', violet: '#6d28d9', bleu: '#1d4ed8', cyan: '#0e7490', vert: '#15803d', olive: '#4d7c0f', gris: '#475569', brun: '#78350f' };
@@ -127,8 +128,18 @@ function stockOf(ev) {
   const out = {};
   Object.keys(ev.products).forEach(pid => { out[pid] = { start: ev.products[pid].stock, restock: 0, sold: 0, left: null }; });
   Object.values(ev.restocks || {}).forEach(r => { if (out[r.productId]) out[r.productId].restock += r.qty; });
-  salesOf(ev).forEach(s => s.lines.forEach(l => { if (out[l.productId]) out[l.productId].sold += l.qty; }));
-  Object.values(out).forEach(o => { o.left = o.start == null ? null : o.start + o.restock - o.sold; });
+  /* Produit non suivi au départ : le suivi commence au premier réassort (seules les ventes suivantes sont décomptées). */
+  const since = {};
+  Object.values(ev.restocks || {}).forEach(r => { if (out[r.productId] && out[r.productId].start == null && (!since[r.productId] || r.at < since[r.productId])) since[r.productId] = r.at; });
+  salesOf(ev).forEach(s => s.lines.forEach(l => {
+    const o = out[l.productId]; if (!o) return;
+    o.sold += l.qty;
+    if (o.start != null || (since[l.productId] && s.at >= since[l.productId])) o.soldTracked = (o.soldTracked || 0) + l.qty;
+  }));
+  Object.entries(out).forEach(([pid, o]) => {
+    o.tracked = o.start != null || !!since[pid];
+    o.left = o.start != null ? o.start + o.restock - o.sold : since[pid] ? o.restock - (o.soldTracked || 0) : null;
+  });
   return out;
 }
 function tabOf(ev, vid) {
@@ -341,6 +352,7 @@ function viewCatalog() {
     <form class="card quick-add" data-form="quickprod">
       <label>Nom<input name="name" required autocomplete="off" data-autofocus placeholder="Bière pression 25 cl"></label>
       <label>Catégorie<input name="category" list="cats" value="${esc(ui.lastCategory || '')}" placeholder="Boissons" autocomplete="off"></label>
+      ${catPicker(allCats, ui.lastCategory)}
       <label>Prix (€)<input name="price" inputmode="decimal" required placeholder="2,50" autocomplete="off"></label>
       <label>Ticket<select name="ticket"><option value="own">Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${ui.lastTicket === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
       <button class="btn primary">Ajouter</button></form>
@@ -405,7 +417,8 @@ function viewPrep(ev) {
   }
   h += `<div class="sec-title"><h2>Bénévoles et crédit offert</h2><div class="row">
       <label class="row" style="gap:.5rem">Crédit par défaut (€)<input class="num" inputmode="decimal" data-chg="evf" data-f="defaultCredit" value="${toInput(ev.defaultCredit)}"></label>
-      <button class="btn small" data-act="credit-apply">Appliquer aux présents</button></div></div>
+      <button class="btn small" data-act="credit-apply">Appliquer aux présents</button>
+      <button class="btn small" data-act="vol-all">Tout sélectionner</button><button class="btn small" data-act="vol-none">Tout retirer</button></div></div>
     <div class="card">`;
   h += vols.length ? `<div class="tablewrap"><table><tbody>${vols.map(v => {
     const cfg = ev.volunteers[v.id];
@@ -783,7 +796,7 @@ function modalHTML(ev) {
     const cats = [...new Set(list('products').map(x => x.category))];
     inner = `<form data-form="product" data-id="${p.id}"><h2>Modifier le produit</h2><div class="formgrid">
       <label>Nom<input name="name" required value="${esc(p.name)}" data-autofocus></label>
-      <label>Catégorie<input name="category" list="cats2" value="${esc(p.category)}"></label><datalist id="cats2">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+      <label>Catégorie<input name="category" list="cats2" value="${esc(p.category)}"></label><datalist id="cats2">${cats.map(c => `<option value="${esc(c)}">`).join('')}</datalist>${catPicker(cats.sort((a, b) => a.localeCompare(b, 'fr')), p.category)}
       <label>Prix (€)<input name="price" inputmode="decimal" required value="${toInput(p.price)}"></label>
       <label>Ticket remis<select name="ticket"><option value="own" ${cur === 'own' ? 'selected' : ''}>Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${cur === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div>
       <fieldset class="swatches"><legend>Couleur du bouton</legend>${COLOR_KEYS.map(k => `<label><input type="radio" name="color" value="${k}" ${p.color === k ? 'checked' : ''}><span style="--c:${COLORS[k]}" title="${k}"></span></label>`).join('')}</fieldset>
@@ -799,7 +812,9 @@ function modalHTML(ev) {
   } else if (M.type === 'restock') {
     const p = S.products[M.id];
     inner = `<form data-form="restock" data-id="${p.id}"><h2>Réassort : ${esc(p.name)}</h2>
-      <label>Quantité ajoutée (négative pour corriger)<input name="qty" inputmode="numeric" required autocomplete="off" data-autofocus placeholder="24"></label>
+      ${stockOf(ev)[p.id] && stockOf(ev)[p.id].tracked
+        ? '<label>Quantité ajoutée (négative pour corriger)<input name="qty" inputmode="numeric" required autocomplete="off" data-autofocus placeholder="24"></label>'
+        : '<p class="muted">Le stock de ce produit n’était pas suivi. Indiquez la quantité réellement en stock <b>maintenant</b> : le suivi démarre à partir de cet instant, les ventes déjà faites ne sont pas décomptées.</p><label>Quantité en stock maintenant<input name="qty" inputmode="numeric" required autocomplete="off" data-autofocus placeholder="12"></label>'}
       <div class="modal-actions"><button type="button" class="btn" data-act="modal-close">Annuler</button><button class="btn primary">Ajouter au stock</button></div></form>`;
   } else if (M.type === 'settle') {
     return settleModal(ev);
@@ -1070,6 +1085,8 @@ FORM.newevent = (f, fd) => {
 FORM.restock = (f, fd) => {
   const qty = parseInt(fd.get('qty'), 10), ev = curEvent();
   if (!qty) { toast('Indiquez une quantité.'); return; }
+  const st0 = stockOf(ev)[f.dataset.id];
+  if (st0 && !st0.tracked && qty < 0) { toast('Indiquez une quantité positive.'); return; }
   const rid = uid();
   ev.restocks[rid] = { id: rid, productId: f.dataset.id, qty, at: new Date().toISOString(), tablet: Sync.tabletName() };
   save('events', ev); ui.modal = null; toast('Stock mis à jour'); render();
@@ -1283,6 +1300,11 @@ function viewSync() {
     <p class="muted">Compte : ${esc(s.user.email || '')}</p>
     <form class="row" data-form="sync-tablet"><label class="grow">Nom de cette tablette<input name="name" value="${esc(Sync.tabletName())}" required autocomplete="off"></label><button class="btn" style="align-self:flex-end">Enregistrer</button></form>
     <p>${s.pending ? `${s.pending} modification${s.pending > 1 ? 's' : ''} en attente d’envoi.` : 'Tout est envoyé.'} Le nom de la tablette est enregistré avec chaque vente, pour le bilan.</p></div>
+    ${(() => { const d = Sync.diag(); const hm = t => new Date(t).toLocaleTimeString('fr-FR');
+      return `<div class="card"><h2>Diagnostic</h2><ul><li>Dernier échange avec le serveur : ${d.lastContact ? hm(d.lastContact) : 'aucun depuis le démarrage'}</li>
+      <li>Dernière erreur d’envoi : ${esc(d.lastErr || 'aucune')}</li>${d.pending.length ? `<li>En attente : ${d.pending.length} élément(s) (${esc(d.pending.slice(0, 6).join(', '))})</li>` : ''}</ul>
+      ${d.testResult ? `<p><strong>${esc(d.testResult)}</strong></p>` : ''}
+      <div class="row"><button class="btn" data-act="sync-test">Tester l’écriture</button><button class="btn" data-act="sync-reconnect">Relancer la liaison</button></div></div>`; })()}
     <div class="card"><h2>À savoir</h2><ul><li>Une seule tablette règle une ardoise ou clôture la manifestation.</li><li>Si une tablette perd le réseau, elle continue d’encaisser : ses ventes partent au retour de la connexion.</li><li>Faites tout de même une sauvegarde à la fin de chaque manifestation.</li></ul></div>
     <div class="card"><button class="btn ghost" data-act="sync-out">Quitter la synchronisation</button><p class="muted">La tablette garde ses données mais ne communique plus avec les autres.</p></div></main>`;
 }
@@ -1312,6 +1334,25 @@ ACT['sync-out'] = () => confirmModal({
 });
 ACT['sync-signout'] = async () => { try { await Sync.signOut(); } catch (e) { /* ignoré */ } render(); };
 ACT['sync-retry'] = () => { Sync.retry(); render(); };
+ACT['pick-cat'] = el => {
+  const f = el.closest('form'), inp = f && f.querySelector('input[name=category]');
+  if (!inp) return;
+  inp.value = el.dataset.v;
+  f.querySelectorAll('.catpick .chip').forEach(c => c.classList.toggle('on', c === el));
+};
+ACT['vol-all'] = () => {
+  const ev = curEvent();
+  list('volunteers').filter(v => v.active).forEach(v => { if (!ev.volunteers[v.id]) ev.volunteers[v.id] = { credit: ev.defaultCredit || 0 }; });
+  save('events', ev); render();
+};
+ACT['vol-none'] = () => {
+  const ev = curEvent(); let kept = 0;
+  Object.keys(ev.volunteers).forEach(id => { if (tabOf(ev, id).consumed > 0) kept++; else delete ev.volunteers[id]; });
+  save('events', ev); render();
+  if (kept) toast(kept + ' bénévole' + (kept > 1 ? 's' : '') + ' gardé' + (kept > 1 ? 's' : '') + ' : consommation déjà enregistrée.');
+};
+ACT['sync-test'] = () => { Sync.test(); };
+ACT['sync-reconnect'] = () => { Sync.reconnect(); };
 ACT['sync-retry-probe'] = () => { Sync.probe(); };
 document.addEventListener('input', e => { if (e.target.id === 'tabname') ui.syncTablet = e.target.value; });
 

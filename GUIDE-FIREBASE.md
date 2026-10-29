@@ -48,7 +48,7 @@ window.SYNC_CONFIG = {
 ```
 
 Ces valeurs ne sont pas secrètes : c'est le mot de passe et les règles qui protègent les données.
-4. Dans `sw.js`, changez `caisse-v1.1.0` en `caisse-v1.1.1` pour que les tablettes récupèrent le nouveau fichier. Validez (Commit).
+4. Dans `sw.js`, changez `caisse-v1.1.4` en `caisse-v1.1.5` pour que les tablettes récupèrent le nouveau fichier. Validez (Commit).
 
 ## 5. Relier les tablettes
 
@@ -87,3 +87,7 @@ Si un point échoue, notez lequel et ce que la pastille indique : cela suffit po
 ## Limites de l'offre gratuite
 
 Environ 50 000 lectures et 20 000 écritures par jour, bien au-delà d'une buvette (quelques centaines à milliers de ventes). Si Google change l'offre, l'export de sauvegarde permet de tout récupérer.
+
+## En cas de problème
+
+Écran **Plusieurs tablettes** → bloc **Diagnostic** : heure du dernier échange avec le serveur, dernière erreur, éléments en attente. Le bouton **Tester l'écriture** dit si le serveur répond ou si les règles de sécurité refusent ; **Relancer la liaison** reconnecte sans recharger l'appli.

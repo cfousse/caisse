@@ -112,6 +112,21 @@ const Sync = (() => {
   }
   window.addEventListener('online', () => { changed(); pullClosed(); reconcile(); });
   window.addEventListener('offline', changed);
+  /* Relance la liaison quand l'appli revient au premier plan ou que le réseau revient. */
+  async function reconnect() { try { if (st.adapter && st.adapter.reconnect) await st.adapter.reconnect(); } catch (e) { /* ignoré */ } changed(); reconcile(); }
+  window.addEventListener('online', () => reconnect());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && st.started) reconnect(); });
+  async function test() {
+    st.testResult = 'Test en cours…'; changed();
+    try { await st.adapter.ping(tabletName()); st.testResult = 'Écriture acceptée par le serveur : la liaison fonctionne.'; }
+    catch (e) {
+      const c = (e && (e.code || e.message)) || 'erreur';
+      st.testResult = c === 'timeout' ? 'Le serveur ne répond pas (délai dépassé) : réseau ou pare-feu qui bloque Google.'
+        : /permission/.test(c) ? 'Écriture REFUSÉE par les règles de sécurité (permission-denied) : vérifiez l’adresse dans les règles.' : 'Échec : ' + c;
+    }
+    changed();
+  }
+  const diag = () => ({ lastContact: st.lastContact || 0, lastErr: st.lastErr || '', testResult: st.testResult || '', pending: Object.keys(dirtyMap()).concat([...inflight.keys()]) });
 
   /* ---------- connecteur et authentification ---------- */
   async function ensureAdapter() {
@@ -165,6 +180,7 @@ const Sync = (() => {
   function onSnap(store, label, snap) {
     st.firstSeen[label] = true;
     st.fromCache[label] = !!snap.fromCache;
+    if (!snap.fromCache) st.lastContact = Date.now();
     if (st.error && !st.fromCache[label]) st.error = '';
     applyChanges(store, snap.changes);
     changed();
@@ -255,6 +271,7 @@ const Sync = (() => {
       changed();
     }).catch(e => {
       console.warn('Envoi refusé, sera renvoyé plus tard', e);
+      st.lastErr = (e && (e.code || e.message)) || 'erreur';
       done(); markDirty(k); changed();
     });
   }
@@ -338,7 +355,7 @@ const Sync = (() => {
   return {
     init, enabled, linked, tabletName, state, pillInfo, updatePill, ensureAdapter, onSyncScreen,
     signIn: (email, pw) => st.adapter.signIn(email, pw), signOut: () => st.adapter.signOut(),
-    probe, link, unlink, setTablet, retry, onSave, onDelete,
+    probe, link, unlink, setTablet, retry, onSave, onDelete, reconnect, test, diag,
     hasAdapter: () => !!st.adapter, info: () => ({ situation: st.situation, probing: st.probing, probeError: st.probeError }),
     diff, // exposé pour les tests
   };

@@ -7,7 +7,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.1.0/firebas
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, query, where, limit,
-  onSnapshot, setDoc, deleteDoc, deleteField, getDocsFromServer, writeBatch,
+  onSnapshot, setDoc, deleteDoc, deleteField, getDocsFromServer, writeBatch, enableNetwork, disableNetwork,
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 
 const DELETE = '__DELETE__';
@@ -40,11 +40,11 @@ export function create(cfg) {
     // Copie locale persistante : les ventes restent en attente d'envoi même si l'appli est fermée hors ligne.
     db = initializeFirestore(app, {
       localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-      experimentalAutoDetectLongPolling: true,
+      experimentalForceLongPolling: true,
     });
   } catch (e) {
     console.warn('Copie locale Firestore indisponible, mode mémoire', e);
-    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    db = initializeFirestore(app, { experimentalForceLongPolling: true });
   }
 
   const watchQuery = (q, onSnap, onErr) => onSnapshot(q, { includeMetadataChanges: true }, snap => onSnap(mapSnapshot(snap)), onErr);
@@ -72,6 +72,15 @@ export function create(cfg) {
 
     push(col, id, patch) { return setDoc(doc(db, col, id), convert(patch), { merge: true }); },
     remove(col, id) { return deleteDoc(doc(db, col, id)); },
+
+    /* Relance la liaison avec le serveur sans recharger l'appli. */
+    async reconnect() { try { await disableNetwork(db); } catch (e) { /* ignoré */ } await enableNetwork(db); },
+    /* Test d'écriture : renvoie « ok » ou le code d'erreur (permission-denied, délai dépassé…). */
+    async ping(name) {
+      const w = setDoc(doc(db, '_diag', 'test'), { tablet: name || '', at: Date.now() });
+      const t = new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 12000));
+      await Promise.race([w, t]);
+    },
 
     async isRemoteEmpty() {
       const res = await Promise.all(['events', 'products'].map(c => getDocsFromServer(query(collection(db, c), limit(1)))));

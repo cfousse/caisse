@@ -1,8 +1,8 @@
 # Caisse de manifestation — Plan du projet
 
-*Version 5 — plusieurs tablettes synchronisées (Firebase)*
+*Version 8 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
 
-> **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; la partie 9, le passage à plusieurs tablettes, reste à faire.
+> **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; le passage à plusieurs tablettes (partie 7) est construit et testé sur une simulation de Firebase ; il reste à le valider sur votre vrai projet (voir 7.8 et 7.10).
 
 ## 1. Objectif
 
@@ -105,8 +105,8 @@ Le **stock restant** est calculé : stock de départ + réassorts − quantités
 - Accès au catalogue, aux bénévoles, à l'historique et à la sauvegarde
 
 ### 4.2 Catalogue de produits
-- Liste des produits par catégorie
-- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
+- Liste des produits par catégorie, triés par ordre alphabétique dans chaque catégorie (catalogue, préparation, caisse, exports)
+- Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; les catégories déjà utilisées s'affichent en boutons à toucher (aussi à la modification d'un produit), il suffit d'en choisir une ou d'en taper une nouvelle ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
 - Gestion des tickets partagés (créer, renommer, voir quels produits les utilisent)
 - Modification et archivage d'un produit
 
@@ -122,11 +122,12 @@ Pensé pour être fait à l'avance, tranquillement, pour plusieurs manifestation
 - Cocher les produits du catalogue à vendre
 - Saisir le stock de départ dans un tableau, produit par produit, avec passage automatique à la ligne suivante
 - Ajuster un prix pour cette manifestation seulement
-- Cocher les bénévoles présents et fixer leur crédit offert (montant par défaut pour tous, puis exceptions)
+- **Réassort d'un produit dont le stock n'était pas suivi** : la quantité saisie devient le stock « maintenant » et le suivi démarre à cet instant (les ventes déjà faites ne sont pas décomptées). Exemple : je saisis 12 bières, il en reste 12, puis 9 après une vente de 3. Les réassorts suivants s'ajoutent normalement.
+- Cocher les bénévoles présents et fixer leur crédit offert (montant par défaut pour tous, puis exceptions) ; boutons **Tout sélectionner** et **Tout retirer** (un bénévole qui a déjà consommé reste dans la manifestation)
 - Un bénévole imprévu peut aussi être ajouté le jour même, depuis la caisse
 
 ### 4.5 Caisse (écran principal pendant la manifestation)
-- Grille de gros boutons colorés, regroupés par catégorie, adaptée au tactile
+- Grille de gros boutons colorés, regroupés par catégorie, adaptée au tactile. Sur téléphone (écran étroit), boutons, claviers et textes sont plus compacts (3 produits par ligne) ; la tablette garde les grandes tailles.
 - Sur chaque bouton : nom, prix, stock restant ; le bouton passe en orange quand le stock est bas et devient grisé à zéro
 - Un toucher ajoute une unité au panier
 - Panier sur le côté : quantités modifiables (+ / −), suppression d'une ligne, bouton « Vider »
@@ -270,6 +271,15 @@ Créer le projet Firebase (compte Google, projet gratuit, activation de Firestor
 6. **Reprise des données existantes** vers le cloud
 7. **Guide de création du projet Firebase** et protocole de test
 
+### 7.10 Diagnostic de synchronisation (ajouté après le premier essai)
+
+Premier retour d'essai : une tablette repassait « hors ligne » et des données n'arrivaient pas dans Firebase. Ajouts de la version 1.1.1 :
+
+- Mode de connexion plus robuste pour les tablettes (« long polling » forcé), utile quand le wifi ou le navigateur bloque la liaison temps réel.
+- Relance automatique de la liaison au retour du réseau et au retour de l'appli au premier plan.
+- Bloc **Diagnostic** sur l'écran Synchronisation : dernier échange avec le serveur, dernière erreur d'envoi, éléments en attente, bouton **Tester l'écriture** (distingue réseau bloqué et règles de sécurité qui refusent) et bouton **Relancer la liaison**.
+- La cause exacte du premier incident reste à confirmer avec le résultat du test sur la vraie tablette.
+
 ---
 
 ## 8. Hors périmètre pour l'instant
@@ -279,4 +289,3 @@ Créer le projet Firebase (compte Google, projet gratuit, activation de Firestor
 - Lien direct avec le terminal de paiement CB (on valide manuellement)
 - Un compte par bénévole (une seule connexion partagée entre les tablettes)
 - Plusieurs tiroirs-caisses séparés
-
