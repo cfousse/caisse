@@ -1,6 +1,6 @@
 // Service worker : met l'application en cache pour qu'elle fonctionne sans réseau.
 // Pour publier une mise à jour, changer le numéro de version ci-dessous.
-const CACHE = 'caisse-v1.1.0';
+const CACHE = 'caisse-v1.1.1';
 const SDK_CACHE = 'caisse-sdk'; // SDK Firebase (version figée dans l'adresse), conservé d'une version à l'autre
 const FILES = ['./', './index.html', './style.css', './app.js', './sync.js', './sync-firebase.js', './firebase-config.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
