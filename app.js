@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.4';
+const VERSION = '1.1.5';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);

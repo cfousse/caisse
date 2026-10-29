@@ -48,7 +48,7 @@ window.SYNC_CONFIG = {
 ```
 
 Ces valeurs ne sont pas secrètes : c'est le mot de passe et les règles qui protègent les données.
-4. Dans `sw.js`, changez `caisse-v1.1.4` en `caisse-v1.1.5` pour que les tablettes récupèrent le nouveau fichier. Validez (Commit).
+4. Dans `sw.js`, changez `caisse-v1.1.5` en `caisse-v1.1.6` pour que les tablettes récupèrent le nouveau fichier. Validez (Commit).
 
 ## 5. Relier les tablettes
 
