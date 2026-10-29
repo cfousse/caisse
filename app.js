@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.9';
+const VERSION = '1.1.12';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -31,6 +31,8 @@ const catField = cur => {
   return `<label>Catégorie<select name="catsel" required><option value="" ${sel ? '' : 'selected'} disabled>${cats.length ? 'Choisir…' : 'Créez d’abord une catégorie'}</option>${cats.map(c => `<option value="${esc(c)}" ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`;
 };
 const readCategory = fd => (fd.get('catsel') || '').trim();
+/* Boutons d'action des listes (texte, plus lisible qu'une icône). */
+const iconBtn = (kind, label, attrs) => `<button class="btn small ${kind === 'trash' ? 'ghost' : ''}" ${attrs}>${label}</button>`;
 const list = store => Object.values(S[store]);
 const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
 const COLORS = { ambre: '#b45309', rouge: '#b91c1c', rose: '#be185d', violet: '#6d28d9', bleu: '#1d4ed8', cyan: '#0e7490', vert: '#15803d', olive: '#4d7c0f', gris: '#475569', brun: '#78350f' };
@@ -345,8 +347,8 @@ function productRow(p) {
   const tk = S.tickets[p.ticketId];
   return `<tr class="${p.active ? '' : 'off'}"><td><span class="dot" style="--c:${COLORS[p.color] || '#555'}"></span><b>${esc(p.name)}</b></td>
     <td class="r tnum">${fmt(p.price)}</td><td>${tk ? (tk.shared ? `<span class="badge">${esc(tk.name)}</span>` : 'Ticket propre') : ''}</td>
-    <td class="r"><button class="btn small" data-act="p-edit" data-id="${p.id}">Modifier</button>
-    <button class="btn small ghost" data-act="${p.active ? 'p-archive' : 'p-restore'}" data-id="${p.id}">${p.active ? 'Archiver' : 'Restaurer'}</button></td></tr>`;
+    <td class="r">${iconBtn('edit', 'Modifier', `data-act="p-edit" data-id="${p.id}"`)}
+    ${p.active ? iconBtn('archive', 'Archiver', `data-act="p-archive" data-id="${p.id}"`) : `<button class="btn small ghost" data-act="p-restore" data-id="${p.id}">Restaurer</button>`}</td></tr>`;
 }
 function viewCatalog() {
   const prods = list('products').sort(sortProducts);
@@ -360,11 +362,11 @@ function viewCatalog() {
       <label>Prix (€)<input name="price" inputmode="decimal" required placeholder="2,50" autocomplete="off"></label>
       <label>Ticket<select name="ticket"><option value="own">Ticket propre</option>${shared.map(t => `<option value="${t.id}" ${ui.lastTicket === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
       <button class="btn primary">Ajouter</button></form>`;
-  h += `<div class="sec-title"><h2>Catégories</h2><button class="btn" data-act="c-add">Nouvelle catégorie</button></div>
+  h += `<div class="sec-title"><h2>Catégories</h2><button class="btn" data-act="c-add" title="Nouvelle catégorie">+ Catégorie</button></div>
     <div class="card">${allCategories().length ? allCategories().map(c => {
       const used = list('products').filter(p => p.category === c);
       return `<div class="row sb" style="padding:.3rem 0"><div><b>${esc(c)}</b> <span class="muted">· ${used.length ? used.length + ' produit' + (used.length > 1 ? 's' : '') : 'aucun produit'}</span></div>
-        <div class="row"><button class="btn small" data-act="cat-rename" data-v="${esc(c)}">Renommer</button>${used.length ? '' : `<button class="btn small ghost" data-act="c-del" data-v="${esc(c)}">Supprimer</button>`}</div></div>`;
+        <div class="row">${iconBtn('edit', 'Renommer', `data-act="cat-rename" data-v="${esc(c)}"`)}${used.length ? '' : iconBtn('trash', 'Supprimer', `data-act="c-del" data-v="${esc(c)}"`)}</div></div>`;
     }).join('') : emptyMsg('Créez d’abord vos catégories (par exemple « Boissons », « Restauration »), puis choisissez-en une dans la liste « Catégorie » de chaque produit.')}</div>`;
   if (!act.length) h += emptyMsg('Aucun produit pour l’instant. Remplissez la ligne ci-dessus : après « Ajouter », vous pouvez enchaîner avec le produit suivant.');
   else {
@@ -374,11 +376,11 @@ function viewCatalog() {
     });
     h += `</tbody></table></div>`;
   }
-  h += `<div class="sec-title"><h2>Tickets partagés</h2><button class="btn" data-act="t-add">Nouveau ticket partagé</button></div>
+  h += `<div class="sec-title"><h2>Tickets partagés</h2><button class="btn" data-act="t-add" title="Nouveau ticket partagé">+ Ticket</button></div>
     <div class="card">${shared.length ? shared.map(t => {
       const used = list('products').filter(p => p.ticketId === t.id);
       return `<div class="row sb" style="padding:.3rem 0"><div><b>${esc(t.name)}</b> <span class="muted">· ${used.length ? used.map(p => esc(p.name)).join(', ') : 'aucun produit'}</span></div>
-        <div class="row"><button class="btn small" data-act="t-rename" data-id="${t.id}">Renommer</button>${used.length ? '' : `<button class="btn small ghost" data-act="t-del" data-id="${t.id}">Supprimer</button>`}</div></div>`;
+        <div class="row">${iconBtn('edit', 'Renommer', `data-act="t-rename" data-id="${t.id}"`)}${used.length ? '' : iconBtn('trash', 'Supprimer', `data-act="t-del" data-id="${t.id}"`)}</div></div>`;
     }).join('') : emptyMsg('Par défaut chaque produit a son propre ticket. Créez un ticket partagé (par exemple « Boisson ») quand un seul ticket sert pour plusieurs produits, puis choisissez-le dans la liste « Ticket » du produit.')}</div>`;
   if (arch.length) h += `<div class="sec-title"><h2>Archivés</h2></div><div class="card tablewrap"><table><tbody>${arch.map(productRow).join('')}</tbody></table></div>`;
   return h + '</main>';
@@ -389,8 +391,8 @@ function viewVolunteers() {
   const vs = list('volunteers').sort(byName);
   const act = vs.filter(v => v.active), arch = vs.filter(v => !v.active);
   const row = v => `<div class="row sb" style="padding:.35rem 0;border-bottom:1px solid var(--line)"><b class="${v.active ? '' : 'muted'}">${esc(v.name)}</b>
-    <div class="row"><button class="btn small" data-act="v-rename" data-id="${v.id}">Renommer</button>
-    <button class="btn small ghost" data-act="${v.active ? 'v-archive' : 'v-restore'}" data-id="${v.id}">${v.active ? 'Archiver' : 'Restaurer'}</button></div></div>`;
+    <div class="row">${iconBtn('edit', 'Renommer', `data-act="v-rename" data-id="${v.id}"`)}
+    ${v.active ? iconBtn('archive', 'Archiver', `data-act="v-archive" data-id="${v.id}"`) : `<button class="btn small ghost" data-act="v-restore" data-id="${v.id}">Restaurer</button>`}</div></div>`;
   return topbar(null) + `<main id="main" class="page" data-keep="main"><h1>Bénévoles</h1>${storageBanner()}
     <form class="card row" data-form="vol-add"><label class="grow">Nom ou prénom<input name="name" required autocomplete="off" data-autofocus placeholder="Camille D."></label>
       <button class="btn primary" style="align-self:flex-end">Ajouter</button></form>
@@ -485,9 +487,9 @@ function viewCash(ev) {
     <section class="cash-products" data-keep="prods">
       ${cats.length > 1 ? `<div class="chips"><button class="chip ${ui.filter === 'all' ? 'on' : ''}" data-act="filter" data-v="all">Tout</button>${cats.map(c => `<button class="chip ${ui.filter === c ? 'on' : ''}" data-act="filter" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       ${grid}</section>
-    <aside class="cart"><h2>Commande</h2>
+    <aside class="cart ${ui.cartOpen ? 'open' : ''}"><h2>Commande</h2>
       <div class="cart-lines" data-keep="cart">${lines || '<div class="cart-empty">Touchez les produits pour les ajouter.</div>'}</div>
-      <div class="cart-foot"><div class="total"><span>Total</span><strong>${fmt(total)}</strong></div>
+      <div class="cart-foot"><button class="cartsum" data-act="cart-toggle" aria-expanded="${ui.cartOpen ? 'true' : 'false'}">${ui.cart.reduce((a, c) => a + c.qty, 0)} article${ui.cart.reduce((a, c) => a + c.qty, 0) > 1 ? 's' : ''} <span>${ui.cartOpen ? '▼' : '▲'}</span></button><div class="total"><span>Total</span><strong>${fmt(total)}</strong></div>
         <div class="cart-btns"><button class="btn" data-act="cart-clear" ${ui.cart.length ? '' : 'disabled'}>Vider</button>
         <button class="btn primary big" data-act="pay-start" ${ui.cart.length ? '' : 'disabled'}>Encaisser</button></div></div></aside></main>`;
 }
@@ -885,6 +887,12 @@ function render() {
   if (ui.pay && ev) html += payHTML(ev);
   html += modalHTML(ev);
   app.innerHTML = html;
+  document.querySelectorAll('.tablewrap table').forEach(t => {
+    const heads = [...t.querySelectorAll('thead th')].map(th => th.textContent.trim());
+    if (!heads.length) return;
+    t.classList.add('rtable');
+    t.querySelectorAll('tbody tr').forEach(tr => { if (!tr.classList.contains('group')) [...tr.children].forEach((td, i) => { if (heads[i]) td.dataset.l = heads[i]; }); });
+  });
   const same = key === lastRoute;
   document.querySelectorAll('[data-keep]').forEach(el => { if (same && scr[el.dataset.keep] != null) el.scrollTop = scr[el.dataset.keep]; });
   const inModal = document.querySelector('.overlay [data-autofocus]');
@@ -1039,6 +1047,7 @@ ACT['v-archive'] = el => { const v = S.volunteers[el.dataset.id]; v.active = fal
 ACT['v-restore'] = el => { const v = S.volunteers[el.dataset.id]; v.active = true; save('volunteers', v); render(); };
 
 /* suivi */
+ACT['cart-toggle'] = () => { ui.cartOpen = !ui.cartOpen; render(); };
 ACT['prod-add'] = () => { ui.modal = { type: 'addprod', mode: 'catalog' }; render(); };
 ACT['prod-add-mode'] = el => { ui.modal.mode = el.dataset.v; render(); };
 ACT.restock = el => { ui.modal = { type: 'restock', id: el.dataset.id }; render(); };

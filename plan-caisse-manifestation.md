@@ -1,6 +1,6 @@
 # Caisse de manifestation — Plan du projet
 
-*Version 13 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
+*Version 16 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
 
 > **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; le passage à plusieurs tablettes (partie 7) est construit et testé sur une simulation de Firebase ; il reste à le valider sur votre vrai projet (voir 7.8 et 7.10).
 
@@ -110,6 +110,13 @@ Le **stock restant** est calculé : stock de départ + réassorts − quantités
 - Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; la catégorie se choisit dans une liste déroulante des catégories gérées (comme le ticket) ; il n'y a plus de création à la volée, on crée d'abord la catégorie dans la section « Catégories » ; même principe à la modification d'un produit et à l'ajout d'un produit en cours de manifestation ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
 - Gestion des tickets partagés (créer, renommer, voir quels produits les utilisent)
 - Modification et archivage d'un produit
+
+### 4.2 bis Boutons du catalogue
+Les actions des listes restent écrites (Modifier, Renommer, Supprimer, Archiver, Restaurer) : des icônes ont été essayées puis abandonnées, jugées pas assez claires. Seuls les boutons de création sont raccourcis : « + Catégorie » et « + Ticket ».
+
+### 4.2 ter Adaptation à la taille de l'écran
+- **Téléphone** : sur les écrans Suivi, Ardoises, Préparation, Bilan et catalogue, chaque ligne de tableau devient une petite carte (libellé et valeur), sans défilement latéral. À la caisse, le panier est une **barre fixe en bas, repliée par défaut** : nombre d'articles, total, « Vider » et « Encaisser ». Un appui sur le nombre d'articles déplie la liste de la commande, un second la replie.
+- **Tablette en portrait** : le panier passe sous la grille des produits (liste de la commande, total et « Encaisser » sur une même ligne) et la grille s'élargit. En paysage, la disposition reste inchangée.
 
 ### 4.3 Bénévoles
 - Liste des bénévoles, ajout rapide d'un nom à la suite de l'autre
