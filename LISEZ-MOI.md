@@ -36,7 +36,7 @@ Les données ne sont que sur la tablette. Si elle est perdue, réinitialisée, o
 
 ## 6. Mettre à jour l'application
 
-Remplacez les fichiers sur GitHub (Add file → Upload files). Pour que les tablettes récupèrent la nouvelle version, changez aussi le numéro `CACHE = 'caisse-v1.1.0'` dans `sw.js` (par exemple `caisse-v1.1.6`). La nouvelle version se charge à la prochaine ouverture de l'appli avec du réseau. Les données ne sont pas touchées.
+Remplacez les fichiers sur GitHub (Add file → Upload files). Pour que les tablettes récupèrent la nouvelle version, changez aussi le numéro `CACHE = 'caisse-v1.1.0'` dans `sw.js` (par exemple `caisse-v1.1.7`). La nouvelle version se charge à la prochaine ouverture de l'appli avec du réseau. Les données ne sont pas touchées.
 
 ## 7. Essayer avant la première manifestation
 

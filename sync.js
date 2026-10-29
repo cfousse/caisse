@@ -104,7 +104,7 @@ const Sync = (() => {
   }
   function updatePill() {
     const p = pillInfo();
-    document.querySelectorAll('.syncpill').forEach(el => { el.textContent = p.text; el.className = 'syncpill ' + p.cls; });
+    document.querySelectorAll('.syncpill').forEach(el => { const pt = el.querySelector('.pt'); (pt || el).textContent = p.text; el.title = p.text; el.className = 'syncpill ' + p.cls; });
   }
   function changed() {
     updatePill();

@@ -324,3 +324,29 @@ tr.group td { background: #f3f5f8; font-weight: 700; }
   .syncpill { min-height: 36px; font-size: .82rem; padding: .2rem .65rem; }
   .modal, .sheet { padding: .9rem; }
 }
+
+/* ---------- téléphone : barre du haut compacte, menu et pastille réduite à un rond ---------- */
+.menubtn { display: none; }
+@media (max-width: 600px), (max-height: 500px) and (max-width: 950px) {
+  .top { position: relative; flex-wrap: nowrap; gap: .5rem; padding-top: calc(.3rem + env(safe-area-inset-top, 0px)); padding-bottom: .3rem; }
+  .brand { padding: .3rem .6rem; font-size: .95rem; }
+  .evtitle { flex: 1; font-size: .95rem; }
+  .evtitle strong { max-width: 38vw; }
+  .menubtn { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; width: 40px; height: 36px; border: 0; border-radius: 10px; background: rgba(255,255,255,.14); color: #fff; font-size: 1.4rem; line-height: 1; }
+  .tabs { display: none; position: absolute; top: 100%; right: 8px; z-index: 15; flex-direction: column; flex-wrap: nowrap; margin: 0; min-width: 190px; padding: .4rem; gap: .25rem; background: var(--brand); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+  .top.menu-open .tabs { display: flex; }
+  .tabs a { min-height: 44px; }
+  .top .syncpill, .top .tabs + .syncpill, .top .menubtn + .tabs + .syncpill { margin-left: 0; min-height: 0; padding: 0; width: 18px; height: 18px; background: transparent; flex: none; }
+  .top .syncpill .pt { display: none; }
+  .top .syncpill::before { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.85); box-sizing: border-box; }
+  .top .syncpill.ok::before { background: #34d399; }
+  .top .syncpill.wait::before { background: #93b4f5; }
+  .top .syncpill.warn::before { background: #fbbf24; }
+  .top .syncpill.bad::before { background: #f87171; }
+  .top > .syncpill:last-child { margin-left: auto; }
+  .top .menubtn ~ .syncpill { margin-left: 0; }
+  .top > a.brand + .syncpill { margin-left: auto; }
+}
+@media (max-width: 600px), (max-height: 500px) and (max-width: 950px) {
+  .top .badge { white-space: nowrap; font-size: .7rem; padding: .1rem .4rem; flex: none; }
+}

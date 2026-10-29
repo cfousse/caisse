@@ -1,7 +1,7 @@
 'use strict';
 /* Caisse manifestation — application hors ligne (PWA), sans dépendance.
    Toutes les données restent dans IndexedDB sur la tablette. Les montants sont en centimes. */
-const VERSION = '1.1.5';
+const VERSION = '1.1.6';
 
 /* ========== utilitaires ========== */
 const $ = (s, r = document) => r.querySelector(s);
@@ -267,7 +267,7 @@ const statusBadge = ev => `<span class="badge ${ev.status}">${STATUS[ev.status]}
 function syncPill() {
   if (!Sync.linked()) return '';
   const p = Sync.pillInfo();
-  return `<a class="syncpill ${p.cls}" href="#/sync">${esc(p.text)}</a>`;
+  return `<a class="syncpill ${p.cls}" href="#/sync" title="${esc(p.text)}" aria-label="Synchronisation : ${esc(p.text)}"><span class="pt">${esc(p.text)}</span></a>`;
 }
 function syncTileText() {
   if (!Sync.enabled()) return 'Non configuré';
@@ -281,7 +281,7 @@ function eventNav(ev, active) {
 }
 function topbar(ev, active) {
   return `<header class="top"><a class="brand" href="#/">Accueil</a>
-    ${ev ? `<div class="evtitle"><strong>${esc(ev.name)}</strong> ${statusBadge(ev)}</div><nav class="tabs">${eventNav(ev, active)}</nav>` : ''}${syncPill()}</header>`;
+    ${ev ? `<div class="evtitle"><strong>${esc(ev.name)}</strong> ${statusBadge(ev)}</div><button class="menubtn" data-act="menu-toggle" aria-label="Menu" aria-expanded="false">☰</button><nav class="tabs">${eventNav(ev, active)}</nav>` : ''}${syncPill()}</header>`;
 }
 const storageBanner = () => (dbOk ? '' : '<div class="banner bad"><div class="grow"><b>Le stockage du navigateur ne répond pas.</b> Les données risquent d’être perdues. Faites une sauvegarde dès que possible.</div><a class="btn" href="#/backup">Sauvegarder</a></div>');
 const emptyMsg = t => `<p class="muted">${t}</p>`;
@@ -361,7 +361,7 @@ function viewCatalog() {
   else {
     h += `<div class="card tablewrap"><table><thead><tr><th>Produit</th><th class="r">Prix</th><th>Ticket remis</th><th></th></tr></thead><tbody>`;
     cats.forEach(c => {
-      h += `<tr class="group"><td colspan="4">${esc(c)}</td></tr>` + act.filter(p => p.category === c).map(productRow).join('');
+      h += `<tr class="group"><td colspan="4"><div class="row sb"><span>${esc(c)}</span><button class="btn small" data-act="cat-rename" data-v="${esc(c)}">Renommer</button></div></td></tr>` + act.filter(p => p.category === c).map(productRow).join('');
     });
     h += `</tbody></table></div>`;
   }
@@ -1334,6 +1334,22 @@ ACT['sync-out'] = () => confirmModal({
 });
 ACT['sync-signout'] = async () => { try { await Sync.signOut(); } catch (e) { /* ignoré */ } render(); };
 ACT['sync-retry'] = () => { Sync.retry(); render(); };
+ACT['menu-toggle'] = el => {
+  const top = el.closest('.top'), open = !top.classList.contains('menu-open');
+  top.classList.toggle('menu-open', open); el.setAttribute('aria-expanded', open ? 'true' : 'false');
+};
+ACT['cat-rename'] = el => {
+  const old = el.dataset.v;
+  askText({ title: 'Renommer la catégorie', label: 'Nouveau nom', value: old, fn: v => {
+    const nv = v.trim();
+    if (!nv || nv === old) { closeModal(); render(); return; }
+    const target = list('products').find(p => p.category.toLowerCase() === nv.toLowerCase() && p.category !== old);
+    const name = target ? target.category : nv;
+    list('products').filter(p => p.category === old).forEach(p => { p.category = name; if (target) p.color = target.color; save('products', p); });
+    ui.lastCategory = ui.lastCategory === old ? name : ui.lastCategory;
+    closeModal(); toast(target ? 'Catégories fusionnées' : 'Catégorie renommée'); render();
+  } });
+};
 ACT['pick-cat'] = el => {
   const f = el.closest('form'), inp = f && f.querySelector('input[name=category]');
   if (!inp) return;

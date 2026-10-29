@@ -1,6 +1,6 @@
 # Caisse de manifestation — Plan du projet
 
-*Version 8 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
+*Version 9 — plusieurs tablettes synchronisées (Firebase), diagnostic de synchronisation*
 
 > **Où en est le projet.** L'application à une tablette est construite, testée et livrée (fichier `caisse-manifestation.zip`). Ce plan décrit l'ensemble du projet ; le passage à plusieurs tablettes (partie 7) est construit et testé sur une simulation de Firebase ; il reste à le valider sur votre vrai projet (voir 7.8 et 7.10).
 
@@ -105,6 +105,7 @@ Le **stock restant** est calculé : stock de départ + réassorts − quantités
 - Accès au catalogue, aux bénévoles, à l'historique et à la sauvegarde
 
 ### 4.2 Catalogue de produits
+- Renommer une catégorie : bouton « Renommer » sur la ligne de la catégorie ; tous ses produits (archivés compris) suivent. Renommer vers le nom d'une catégorie existante fusionne les deux.
 - Liste des produits par catégorie, triés par ordre alphabétique dans chaque catégorie (catalogue, préparation, caisse, exports)
 - Ajout rapide : une ligne de saisie (nom, catégorie, prix, ticket) et la touche Entrée enchaîne sur le produit suivant ; les catégories déjà utilisées s'affichent en boutons à toucher (aussi à la modification d'un produit), il suffit d'en choisir une ou d'en taper une nouvelle ; le ticket est par défaut celui du produit, on choisit un ticket partagé dans une liste si besoin
 - Gestion des tickets partagés (créer, renommer, voir quels produits les utilisent)
@@ -127,7 +128,7 @@ Pensé pour être fait à l'avance, tranquillement, pour plusieurs manifestation
 - Un bénévole imprévu peut aussi être ajouté le jour même, depuis la caisse
 
 ### 4.5 Caisse (écran principal pendant la manifestation)
-- Grille de gros boutons colorés, regroupés par catégorie, adaptée au tactile. Sur téléphone (écran étroit), boutons, claviers et textes sont plus compacts (3 produits par ligne) ; la tablette garde les grandes tailles.
+- Grille de gros boutons colorés, regroupés par catégorie, adaptée au tactile. Sur téléphone (écran étroit), boutons, claviers et textes sont plus compacts (3 produits par ligne) ; la tablette garde les grandes tailles. Sur téléphone, la barre du haut est réduite : Caisse, Suivi, Ardoises, Bilan et Préparation passent dans un menu à trois traits, et l'état de la synchronisation devient un simple rond (vert : tout est envoyé, bleu : envoi en cours, orange : hors ligne, rouge : problème ; toucher le rond ouvre l'écran Synchronisation).
 - Sur chaque bouton : nom, prix, stock restant ; le bouton passe en orange quand le stock est bas et devient grisé à zéro
 - Un toucher ajoute une unité au panier
 - Panier sur le côté : quantités modifiables (+ / −), suppression d'une ligne, bouton « Vider »
