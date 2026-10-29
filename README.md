@@ -45,3 +45,4 @@ Sur l'accueil, « Charger un jeu d'exemple » crée des produits, des bénévole
 ## 8. Plusieurs tablettes (facultatif)
 
 Par défaut l'appli fonctionne sur une seule tablette, sans rien configurer. Pour partager catalogue, stocks, ventes et ardoises entre plusieurs caisses, suivez **GUIDE-FIREBASE.md** (Firebase, gratuit). Fichiers concernés : `firebase-config.js` (votre configuration), `sync.js` et `sync-firebase.js` (ne pas modifier).
+
