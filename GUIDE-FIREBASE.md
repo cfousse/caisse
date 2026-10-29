@@ -1,7 +1,7 @@
 # Plusieurs tablettes : mise en place de Firebase (gratuit)
 
 Durée : environ 30 minutes, à faire **à l'avance** (pas le jour d'une manifestation).
-Il vous faut un compte Google et l'appli déjà en ligne sur GitHub Pages (voir LISEZ-MOI.md).
+Il vous faut un compte Google et l'appli déjà en ligne sur GitHub Pages (voir README.md).
 
 > **À savoir avant de commencer.** La synchronisation a été testée ici sur une simulation de Firebase, pas sur un vrai projet. Le test de la partie 6 sur votre vrai projet est donc indispensable. De plus, Google peut demander une carte bancaire pour certaines offres : l'offre gratuite « Spark » devrait suffire (très au-dessus du besoin d'une buvette), mais vérifiez ce que Google affiche à la création. Si une carte est exigée et que vous ne le souhaitez pas, restez en mode une tablette.
 
